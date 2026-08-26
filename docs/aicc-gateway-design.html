@@ -1,0 +1,659 @@
+<title>AICC 연동 게이트웨이</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#f1f4f2;
+    --surface:#ffffff;
+    --surface-2:#e9edea;
+    --ink:#1b2420;
+    --ink-soft:#4d5b54;
+    --ink-faint:#7c8a83;
+    --line:#dbe2dd;
+    --line-strong:#c3ccc6;
+
+    --accent-a:#1c7a68;       /* teal — 기존/검증된 경로 */
+    --accent-a-soft:#e2f1ec;
+    --accent-a-ink:#0f4d41;
+
+    --accent-b:#b45f26;       /* copper — 신규/미정 경로 */
+    --accent-b-soft:#f7e9db;
+    --accent-b-ink:#7a3f16;
+
+    --font-display:"IBM Plex Sans KR", "Noto Sans KR", -apple-system, sans-serif;
+    --font-body:"IBM Plex Sans KR", "Noto Sans KR", -apple-system, sans-serif;
+    --font-mono:"IBM Plex Mono", "D2Coding", ui-monospace, monospace;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10140f;
+      --surface:#161c17;
+      --surface-2:#1d2420;
+      --ink:#e7ede8;
+      --ink-soft:#a8b5ac;
+      --ink-faint:#77857d;
+      --line:#2a332c;
+      --line-strong:#3a4640;
+
+      --accent-a:#4bc3aa;
+      --accent-a-soft:#173029;
+      --accent-a-ink:#8fe0cc;
+
+      --accent-b:#e5915a;
+      --accent-b-soft:#3a2515;
+      --accent-b-ink:#f0b489;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10140f;
+    --surface:#161c17;
+    --surface-2:#1d2420;
+    --ink:#e7ede8;
+    --ink-soft:#a8b5ac;
+    --ink-faint:#77857d;
+    --line:#2a332c;
+    --line-strong:#3a4640;
+
+    --accent-a:#4bc3aa;
+    --accent-a-soft:#173029;
+    --accent-a-ink:#8fe0cc;
+
+    --accent-b:#e5915a;
+    --accent-b-soft:#3a2515;
+    --accent-b-ink:#f0b489;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:16px;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:840px;margin:0 auto;padding:64px 24px 120px;}
+
+  header.doc{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    padding-bottom:32px;
+    margin-bottom:40px;
+    border-bottom:1px solid var(--line-strong);
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--accent-b-ink);
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(1.8rem,4vw,2.5rem);
+    line-height:1.25;
+    margin:0;
+    text-wrap:balance;
+  }
+  .doc-sub{
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    max-width:60ch;
+    text-wrap:balance;
+  }
+  .doc-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    font-family:var(--font-mono);
+    font-size:.82rem;
+    color:var(--ink-faint);
+  }
+  .doc-meta b{color:var(--ink-soft);font-weight:500;}
+
+  nav.toc{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 22px;
+    margin-bottom:56px;
+  }
+  nav.toc p{
+    margin:0 0 10px;
+    font-family:var(--font-mono);
+    font-size:.75rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  nav.toc ol{
+    margin:0;
+    padding:0;
+    list-style:none;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px 24px;
+  }
+  nav.toc a{
+    color:var(--ink-soft);
+    text-decoration:none;
+    font-size:.92rem;
+    border-bottom:1px solid transparent;
+  }
+  nav.toc a:hover{color:var(--ink);border-bottom-color:var(--line-strong);}
+  nav.toc .n{font-family:var(--font-mono);color:var(--accent-b);margin-right:6px;}
+
+  section{margin-bottom:64px;}
+  section:target{scroll-margin-top:24px;}
+
+  h2{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    font-family:var(--font-display);
+    font-size:1.5rem;
+    font-weight:600;
+    margin:0 0 20px;
+    text-wrap:balance;
+  }
+  h2 .n{
+    font-family:var(--font-mono);
+    font-size:1rem;
+    font-weight:500;
+    color:var(--accent-b);
+  }
+  h3{
+    font-family:var(--font-display);
+    font-size:1.08rem;
+    font-weight:600;
+    margin:28px 0 10px;
+  }
+  p{margin:0 0 14px;max-width:68ch;}
+  ul,ol{margin:0 0 16px;padding-left:1.3em;}
+  li{margin-bottom:6px;max-width:64ch;}
+  strong{font-weight:600;color:var(--ink);}
+
+  .tag{
+    display:inline-flex;
+    align-items:center;
+    padding:.15em .65em;
+    border-radius:999px;
+    font-family:var(--font-mono);
+    font-size:.7rem;
+    letter-spacing:.03em;
+    border:1px solid;
+    white-space:nowrap;
+    vertical-align:middle;
+  }
+  .tag-decided{color:var(--accent-a-ink);border-color:var(--accent-a);background:var(--accent-a-soft);}
+  .tag-open{color:var(--accent-b-ink);border-color:var(--accent-b);background:var(--accent-b-soft);}
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 24px;
+    margin:18px 0;
+  }
+  .card + .card{margin-top:12px;}
+  .card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:8px;
+  }
+  .card-head h4{
+    margin:0;
+    font-family:var(--font-display);
+    font-size:.98rem;
+    font-weight:600;
+  }
+  .card p:last-child{margin-bottom:0;}
+
+  .callout{
+    border-left:3px solid var(--accent-b);
+    background:var(--accent-b-soft);
+    border-radius:0 8px 8px 0;
+    padding:14px 18px;
+    margin:18px 0;
+    font-size:.95rem;
+  }
+  .callout strong{color:var(--accent-b-ink);}
+
+  pre{
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px 18px;
+    overflow-x:auto;
+    font-family:var(--font-mono);
+    font-size:.84rem;
+    line-height:1.6;
+    color:var(--ink-soft);
+  }
+  code{font-family:var(--font-mono);font-size:.88em;}
+  :not(pre) > code{
+    background:var(--surface-2);
+    padding:.1em .4em;
+    border-radius:4px;
+    color:var(--ink);
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:.92rem;
+  }
+  th,td{
+    text-align:left;
+    padding:9px 12px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  th{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    font-weight:500;
+  }
+  td code{white-space:nowrap;}
+  .table-wrap{overflow-x:auto;}
+
+  figure{margin:24px 0;}
+  figure svg{width:100%;height:auto;display:block;}
+  figcaption{
+    margin-top:10px;
+    font-size:.86rem;
+    color:var(--ink-faint);
+    text-align:center;
+  }
+  .legend{
+    display:flex;
+    gap:20px;
+    justify-content:center;
+    font-family:var(--font-mono);
+    font-size:.75rem;
+    color:var(--ink-faint);
+    margin-top:8px;
+  }
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  .checklist{list-style:none;padding:0;margin:0;}
+  .checklist li{
+    display:flex;
+    gap:10px;
+    padding:10px 0;
+    border-bottom:1px dashed var(--line);
+    max-width:none;
+  }
+  .checklist li:last-child{border-bottom:none;}
+  .checklist input{margin-top:4px;accent-color:var(--accent-a);}
+  .checklist li:has(input:checked){opacity:.62;}
+  .checklist .who{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    color:var(--ink-faint);
+    display:block;
+    margin-bottom:2px;
+    letter-spacing:.03em;
+  }
+
+  .steps{list-style:none;margin:0;padding:0;counter-reset:step;}
+  .steps li{
+    counter-increment:step;
+    display:flex;
+    gap:14px;
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+    max-width:none;
+  }
+  .steps li:last-child{border-bottom:none;}
+  .steps li::before{
+    content:counter(step);
+    font-family:var(--font-mono);
+    font-size:.8rem;
+    color:var(--accent-a-ink);
+    background:var(--accent-a-soft);
+    width:26px;height:26px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+
+  footer{
+    margin-top:80px;
+    padding-top:24px;
+    border-top:1px solid var(--line);
+    font-size:.82rem;
+    color:var(--ink-faint);
+  }
+
+  @media (max-width:600px){
+    nav.toc ol{grid-template-columns:1fr;}
+    .wrap{padding:40px 18px 90px;}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="doc">
+    <span class="eyebrow">내부 설계 메모 · 초안 v1</span>
+    <h1>AICC 연동 게이트웨이 설계</h1>
+    <p class="doc-sub">챗봇/콜봇(AICC)이 렌탈 백오피스의 업무를 대신 수행할 수 있도록 중계하는 신규 API 서버 — 오늘까지 논의된 구조와 결정 사항 정리</p>
+    <div class="doc-meta">
+      <span><b>작성일</b> 2026-08-21</span>
+      <span><b>상태</b> 논의 진행 중 — 백엔드팀 / AICC 벤더 확인 대기</span>
+      <span><b>범위</b> AS접수 외 여러 상담 시나리오 대비</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <p>목차</p>
+    <ol>
+      <li><a href="#background"><span class="n">01</span>배경 및 목적</a></li>
+      <li><a href="#architecture"><span class="n">02</span>전체 아키텍처</a></li>
+      <li><a href="#structure"><span class="n">03</span>Gateway 내부 구조</a></li>
+      <li><a href="#api-design"><span class="n">04</span>API 설계 원칙</a></li>
+      <li><a href="#auth"><span class="n">05</span>인증 및 세션 전략</a></li>
+      <li><a href="#write-risk"><span class="n">06</span>처리성 API 리스크</a></li>
+      <li><a href="#db-access-risk"><span class="n">07</span>설계 우려사항: 조회 API DB 직접 접근</a></li>
+      <li><a href="#checklist"><span class="n">08</span>확인 체크리스트</a></li>
+      <li><a href="#next"><span class="n">09</span>다음 단계</a></li>
+    </ol>
+  </nav>
+
+  <section id="background">
+    <h2><span class="n">01</span>배경 및 목적</h2>
+    <p>렌탈 백오피스는 React 화면과, 주문 / 고객 / 상담 / 서비스 등 도메인별로 나뉜 Spring Boot MSA 앱들로 구성되어 있다. 지금까지는 상담사가 CTI로 전화를 받으며 이 화면을 직접 보고 조작해 업무를 처리해왔다.</p>
+    <p>이번 프로젝트는 <strong>AICC(챗봇/콜봇)</strong>를 도입해, 고객이 원하는 업무(예: "비데가 따뜻해지지 않는다" → AS접수) 중 일부를 상담사 개입 없이 봇이 직접 처리하도록 간소화하는 것이다. 대화 흐름과 의도 파악은 AICC 솔루션(외부 벤더)이 담당하고, 우리는 <strong>AICC가 백오피스 업무를 수행할 수 있는 API</strong>를 제공해야 한다.</p>
+    <p>기존 MSA를 벤더에 직접 노출하지 않고, 그 사이에 <strong>신규 중계 서버(AICC Gateway)</strong>를 두기로 했다 — 이 문서는 그 서버의 설계 논의를 정리한 것이다.</p>
+  </section>
+
+  <section id="architecture">
+    <h2><span class="n">02</span>전체 아키텍처</h2>
+
+    <figure role="group">
+      <svg viewBox="0 0 900 400" role="img" aria-label="상담사 브라우저와 AICC 봇이 서로 다른 경로로 동일한 기존 MSA API 군에 도달하는 구조도. 상담사는 로그인 세션으로 직접 접근하고, AICC 봇은 벤더와의 인증이 미정인 상태로 신규 Gateway를 거쳐 시스템 계정 세션으로 동일한 API에 접근한다.">
+        <defs>
+          <marker id="arrowA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,0 10,5 0,10" fill="var(--accent-a)"/>
+          </marker>
+          <marker id="arrowB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,0 10,5 0,10" fill="var(--accent-b)"/>
+          </marker>
+        </defs>
+
+        <!-- caller boxes -->
+        <rect x="40" y="28" width="240" height="64" rx="8" fill="none" stroke="var(--ink-faint)" stroke-width="1.4"/>
+        <text x="160" y="55" text-anchor="middle" font-family="var(--font-display)" font-size="14" font-weight="600" fill="var(--ink)">상담사 브라우저</text>
+        <text x="160" y="74" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--ink-faint)">React 화면 · 로그인 세션</text>
+
+        <rect x="620" y="28" width="240" height="64" rx="8" fill="none" stroke="var(--accent-b)" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="740" y="55" text-anchor="middle" font-family="var(--font-display)" font-size="14" font-weight="600" fill="var(--ink)">AICC 봇 / 콜봇</text>
+        <text x="740" y="74" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--accent-b-ink)">외부 벤더 솔루션</text>
+
+        <!-- gateway box -->
+        <rect x="620" y="160" width="240" height="70" rx="8" fill="var(--accent-b-soft)" stroke="var(--accent-b)" stroke-width="1.6"/>
+        <text x="740" y="188" text-anchor="middle" font-family="var(--font-display)" font-size="14" font-weight="600" fill="var(--ink)">AICC Gateway</text>
+        <text x="740" y="206" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--accent-b-ink)">신규 · 시스템 계정 세션 보유</text>
+
+        <!-- existing MSA cluster -->
+        <rect x="140" y="300" width="620" height="90" rx="8" fill="var(--accent-a-soft)" stroke="var(--accent-a)" stroke-width="1.6"/>
+        <text x="450" y="322" text-anchor="middle" font-family="var(--font-display)" font-size="13" font-weight="600" fill="var(--ink)">기존 MSA API 군 (화면용 = 서버간 공용)</text>
+
+        <g font-family="var(--font-mono)" font-size="11" fill="var(--accent-a-ink)">
+          <rect x="175" y="342" width="82" height="30" rx="5" fill="var(--surface)" stroke="var(--accent-a)" stroke-width="1"/>
+          <text x="216" y="361" text-anchor="middle">주문 app</text>
+          <rect x="277" y="342" width="82" height="30" rx="5" fill="var(--surface)" stroke="var(--accent-a)" stroke-width="1"/>
+          <text x="318" y="361" text-anchor="middle">고객 app</text>
+          <rect x="379" y="342" width="82" height="30" rx="5" fill="var(--surface)" stroke="var(--accent-a)" stroke-width="1"/>
+          <text x="420" y="361" text-anchor="middle">상담 app</text>
+          <rect x="481" y="342" width="82" height="30" rx="5" fill="var(--surface)" stroke="var(--accent-a)" stroke-width="1"/>
+          <text x="522" y="361" text-anchor="middle">서비스 app</text>
+          <rect x="583" y="342" width="150" height="30" rx="5" fill="var(--surface)" stroke="var(--line-strong)" stroke-width="1"/>
+          <text x="658" y="361" fill="var(--ink-faint)" text-anchor="middle">… 도메인별 app</text>
+        </g>
+
+        <!-- arrow: 상담사 -> 기존 API (teal, solid) -->
+        <path d="M170,92 L340,300" fill="none" stroke="var(--accent-a)" stroke-width="1.8" marker-end="url(#arrowA)"/>
+        <text x="150" y="200" font-family="var(--font-mono)" font-size="11.5" fill="var(--accent-a-ink)">로그인 세션(쿠키)</text>
+
+        <!-- arrow: AICC bot -> gateway (copper, dashed, TBD) -->
+        <path d="M740,92 L740,160" fill="none" stroke="var(--accent-b)" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowB)"/>
+        <text x="750" y="128" font-family="var(--font-mono)" font-size="11" fill="var(--accent-b-ink)">인증 방식 협의 중</text>
+
+        <!-- arrow: gateway -> 기존 API (teal, solid — 기존 메커니즘 재사용) -->
+        <path d="M660,230 L560,300" fill="none" stroke="var(--accent-a)" stroke-width="1.8" marker-end="url(#arrowA)"/>
+        <text x="565" y="270" text-anchor="end" font-family="var(--font-mono)" font-size="11" fill="var(--accent-a-ink)">시스템 계정 세션(쿠키) 재사용</text>
+      </svg>
+      <figcaption>상담사와 AICC 봇은 서로 다른 입구로 들어오지만, 결국 같은 기존 API 군에 도달한다. Gateway는 새 컴포넌트지만 그 안에서 쓰는 인증 메커니즘(세션 쿠키)은 상담사 로그인과 동일한 것을 재사용한다.</figcaption>
+    </figure>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--accent-a)"></i>기존에 검증된 경로 / 메커니즘</span>
+      <span><i class="swatch" style="background:var(--accent-b)"></i>신규 · 아직 확정되지 않음</span>
+    </div>
+
+    <p>핵심은 이거다 — <span class="tag tag-decided">확정</span> 상담app이 서비스app을 호출하는 등 <strong>기존 앱간 통신도 React 화면이 호출하는 것과 동일한 API</strong>를 공유해서 쓴다. 즉 "서버-서버 전용 내부 API"는 따로 없다. 그래서 Gateway도 별도 API가 아니라 이 화면용 API를 그대로 호출하게 된다.</p>
+  </section>
+
+  <section id="structure">
+    <h2><span class="n">03</span>Gateway 내부 구조</h2>
+    <p>시나리오가 AS접수 외에도 계속 늘어날 걸 전제로, 처음부터 시나리오별로 패키지를 분리해둔다. 특정 시나리오가 나중에 너무 커지면 그때 별도 앱으로 분리하면 된다.</p>
+    <pre>aicc-gateway-service/          (신규 Spring Boot 앱)
+ ├─ common/                    인증, 응답 포맷, 로깅, 예외처리
+ │   └─ auth/                  시스템 계정 세션 관리 (05장 참고)
+ ├─ client/                    기존 MSA 호출 전용 계층
+ │   ├─ OrderClient
+ │   ├─ CustomerClient
+ │   └─ ConsultClient
+ └─ scenario/                  "봇이 수행할 업무" 단위
+     ├─ as/                    AS접수: 조회 → 확인 → 접수
+     ├─ delivery/               배송조회 (예정)
+     └─ cancel/                 해지 (예정)</pre>
+    <p><code>client</code> 계층을 분리해두는 이유는, 기존 MSA API 스펙이 바뀌어도 이 계층만 고치면 되고 시나리오 로직은 영향받지 않게 하기 위함이다.</p>
+  </section>
+
+  <section id="api-design">
+    <h2><span class="n">04</span>API 설계 원칙</h2>
+
+    <h3>화면 API가 아니라 업무 단위로</h3>
+    <p>엔드포인트는 화면 구조가 아니라 "봇이 수행할 업무" 단위로 설계한다. 예: <code>/api/aicc/v1/as/customer-lookup</code>, <code>/api/aicc/v1/as/tickets</code></p>
+
+    <h3>Stateless 유지 <span class="tag tag-decided">확정</span></h3>
+    <p>상담사 화면이 "이름 조회 → 고객 확인 → AS접수 생성"처럼 여러 단계를 거칠 때, <strong>각 단계 API가 매번 필요한 정보를 파라미터로 전부 받는 방식</strong>이라는 게 확인됐다. 즉 서버가 "방금 조회한 고객" 같은 상태를 세션에 들고 있지 않는다. Gateway도 이 원칙을 그대로 유지한다 — 대화의 멀티턴 흐름(슬롯 채우기)은 AICC 벤더 쪽에서 관리하고, Gateway는 매 호출마다 완결된 파라미터를 받아 처리한다.</p>
+
+    <h3>응답 포맷</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>필드</th><th>용도</th></tr>
+      <tr><td><code>customerMessage</code></td><td>봇이 TTS/채팅으로 그대로 읽어줄 고객용 문장</td></tr>
+      <tr><td><code>internalMessage</code></td><td>내부 로그·디버깅용 상세 메시지 (고객에게 노출 안 함)</td></tr>
+      <tr><td><code>requiresHandoff</code></td><td>봇이 처리 불가 → 사람 상담사 연결이 필요함을 나타내는 플래그</td></tr>
+      <tr><td><code>traceId</code></td><td>AICC가 발급한 대화/콜 세션 ID. 하위 MSA 호출까지 관통시켜 추적</td></tr>
+    </table>
+    </div>
+
+    <h3>공통코드 해석</h3>
+    <p>기존 화면은 조회 API가 내려주는 <code>고객유형코드: "1"</code> 같은 코드값을, React가 별도의 공통코드 API로 <code>"1" → "개인"</code>을 매핑해 화면에 그려준다. AICC는 화면이 아니라 API 응답을 그대로 받기 때문에, 이 변환을 안 해주면 코드값의 의미를 알 수 없다.</p>
+    <p><strong>Gateway가 이 변환 책임을 대신 진다.</strong> <code>client</code> 계층에서 조회 API 응답을 받은 뒤, 코드성 필드를 공통코드로 한 번 더 조회/캐시해서 라벨을 붙여 내려준다. 코드값과 라벨을 <strong>둘 다</strong> 포함한다 — 라벨은 고객에게 말해줄 때, 코드값은 시나리오 로직이 분기할 때(예: 법인 고객이면 담당자 연결) 쓰기 위함이다. 라벨 문구는 바뀔 수 있어도 코드값은 잘 바뀌지 않으므로 분기는 코드값 기준으로 한다.</p>
+    <pre>{
+  "customerTypeCode": "1",
+  "customerType": "개인"
+}</pre>
+    <p>공통코드는 거의 바뀌지 않으므로, 매 요청마다 공통코드 API를 다시 호출하지 않도록 <code>common/</code> 계층에 캐시(기동 시 로드 + 주기적 갱신)를 둔다. 시나리오별로 실제 어떤 공통코드 그룹이 필요한지는 09장의 "AS접수 상세 API 목록 확정" 작업 때 함께 조사한다.</p>
+
+    <h3>Gateway는 판단하지 않는다</h3>
+    <p>코드→라벨 <strong>변환</strong>(사전 찾아보기)과, 코드값에 따라 흐름을 가르는 <strong>판단/분기 로직</strong>은 구분해야 한다. 후자를 Gateway 코드 안에 복제하기 시작하면 07장의 DB 직접 접근과 같은 함정 — 백오피스 쪽 규칙이 바뀔 때마다 Gateway도 똑같이 고쳐야 하고, 안 그러면 조용히 어긋나는 이중 관리 문제에 빠진다.</p>
+    <p>원칙: <strong>판단은 기존 API가 하게 두고, Gateway는 그 결과를 봇이 이해할 수 있는 형태로 통역만 한다.</strong> 미리 규칙을 따져서 막지 않고 일단 기존 처리 API를 호출해보고, 비즈니스 규칙 때문에 거절되면 그 응답을 <code>requiresHandoff: true</code>로 바꿔 사람에게 넘긴다(06장 부분 실패 처리와 동일 패턴). 이러면 Gateway가 그 규칙 자체를 몰라도 된다.</p>
+    <p>단, <strong>화면(React)에만 있고 API로는 노출되지 않는 규칙</strong>은 이 방식으로 못 거른다. 이 경우 ① 백엔드팀에 API로 노출을 요청하거나, ② Gateway가 최소한으로 복제(리스크 인지 + 변경 동기화 프로세스 필요)하거나, ③ 일단 시도해보고 실패시 handoff — 세 선택지 중, 실무적으로는 ③을 기본값으로 하고 실제 문제가 반복될 때만 ①·②로 승격하는 것을 권장한다.</p>
+  </section>
+
+  <section id="auth">
+    <h2><span class="n">05</span>인증 및 세션 전략</h2>
+    <p>오늘 논의에서 가장 많이 다룬 부분이다. 확인된 사실부터 정리한다.</p>
+
+    <div class="card">
+      <div class="card-head"><h4>확인된 사실 4가지</h4><span class="tag tag-decided">확정</span></div>
+      <ol>
+        <li>AS접수 생성 같은 처리성 API는 <strong>로그인 세션</strong>을 전제로 동작한다.</li>
+        <li>이 세션은 <strong>서버 세션 쿠키</strong> 방식이다 (JWT 토큰 방식 아님).</li>
+        <li>내부 앱간 호출도 <strong>화면용 API와 동일한 API</strong>를 쓴다 (서버 전용 API 없음).</li>
+        <li>각 단계 API는 <strong>stateless</strong> — 파라미터만으로 완결된다.</li>
+      </ol>
+    </div>
+
+    <h3>설계: 시스템 계정 + 캐싱된 쿠키 재사용</h3>
+    <p>이 네 가지를 종합하면, Gateway는 <strong>AICC 전용 시스템 계정</strong>으로 딱 한 번 로그인해서 받은 세션 쿠키를, 이후의 모든 동시 요청에 재사용하면 된다. 요청마다 새로 로그인하지 않는다.</p>
+
+    <figure role="group">
+      <svg viewBox="0 0 860 300" role="img" aria-label="Gateway가 시스템 계정으로 최초 1회 로그인해 세션 쿠키를 캐싱하고, 동시에 들어오는 여러 요청이 이 쿠키를 재사용해 기존 API를 호출하며, 401 만료 시에만 잠금을 걸고 1회 재로그인하는 흐름도.">
+        <defs>
+          <marker id="arrowA2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,0 10,5 0,10" fill="var(--accent-a)"/>
+          </marker>
+          <marker id="arrowB2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0,0 10,5 0,10" fill="var(--accent-b)"/>
+          </marker>
+        </defs>
+
+        <rect x="20" y="120" width="140" height="56" rx="8" fill="none" stroke="var(--ink-faint)" stroke-width="1.4"/>
+        <text x="90" y="153" text-anchor="middle" font-family="var(--font-display)" font-size="13" font-weight="600" fill="var(--ink)">시스템 계정</text>
+
+        <rect x="260" y="118" width="190" height="60" rx="8" fill="var(--accent-b-soft)" stroke="var(--accent-b)" stroke-width="1.6"/>
+        <text x="355" y="144" text-anchor="middle" font-family="var(--font-display)" font-size="13" font-weight="600" fill="var(--ink)">캐시된 세션 쿠키</text>
+        <text x="355" y="162" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-b-ink)">Gateway 메모리</text>
+
+        <rect x="600" y="30" width="120" height="42" rx="7" fill="none" stroke="var(--accent-a)" stroke-width="1.3"/>
+        <text x="660" y="56" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" fill="var(--ink)">요청 A</text>
+        <rect x="600" y="127" width="120" height="42" rx="7" fill="none" stroke="var(--accent-a)" stroke-width="1.3"/>
+        <text x="660" y="153" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" fill="var(--ink)">요청 B</text>
+        <rect x="600" y="224" width="120" height="42" rx="7" fill="none" stroke="var(--accent-a)" stroke-width="1.3"/>
+        <text x="660" y="250" text-anchor="middle" font-family="var(--font-mono)" font-size="11.5" fill="var(--ink)">요청 C</text>
+
+        <rect x="770" y="118" width="70" height="60" rx="8" fill="var(--accent-a-soft)" stroke="var(--accent-a)" stroke-width="1.6"/>
+        <text x="805" y="142" text-anchor="middle" font-family="var(--font-display)" font-size="12" font-weight="600" fill="var(--ink)">기존</text>
+        <text x="805" y="158" text-anchor="middle" font-family="var(--font-display)" font-size="12" font-weight="600" fill="var(--ink)">API</text>
+
+        <!-- login once -->
+        <path d="M160,148 L258,148" fill="none" stroke="var(--ink-faint)" stroke-width="1.6" marker-end="url(#arrowB2)"/>
+        <text x="209" y="138" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--ink-faint)">최초 1회</text>
+
+        <!-- cache -> requests -->
+        <path d="M450,138 L598,51" fill="none" stroke="var(--accent-a)" stroke-width="1.5" marker-end="url(#arrowA2)"/>
+        <path d="M450,148 L598,148" fill="none" stroke="var(--accent-a)" stroke-width="1.5" marker-end="url(#arrowA2)"/>
+        <path d="M450,158 L598,245" fill="none" stroke="var(--accent-a)" stroke-width="1.5" marker-end="url(#arrowA2)"/>
+        <text x="500" y="200" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-a-ink)">동시 재사용 (stateless)</text>
+
+        <!-- requests -> api -->
+        <path d="M720,51 L768,130" fill="none" stroke="var(--accent-a)" stroke-width="1.3" marker-end="url(#arrowA2)"/>
+        <path d="M720,148 L768,148" fill="none" stroke="var(--accent-a)" stroke-width="1.3" marker-end="url(#arrowA2)"/>
+        <path d="M720,245 L768,166" fill="none" stroke="var(--accent-a)" stroke-width="1.3" marker-end="url(#arrowA2)"/>
+
+        <!-- feedback: 401 -->
+        <path d="M790,178 C 760,240 470,260 360,180" fill="none" stroke="var(--accent-b)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrowB2)"/>
+        <text x="560" y="270" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--accent-b-ink)">401 만료 → 잠금 후 재로그인 1회</text>
+      </svg>
+      <figcaption>동시에 들어오는 여러 요청이 캐시된 쿠키 하나를 공유해도, 각 API가 stateless라 데이터가 섞이지 않는다. 세션이 만료됐을 때만 잠금을 걸고 재로그인을 단 한 번만 수행한다.</figcaption>
+    </figure>
+
+    <div class="callout"><strong>부수 효과</strong> — 처리성 API를 이 시스템 계정으로 호출하면, AS접수 등의 "처리자/등록자" 필드에 자연히 이 계정이 남는다. 별도로 "봇 호출 여부" 필드를 새로 요청하지 않아도, 기존 구조를 그대로 활용해 <strong>어떤 건이 봇 처리 건인지 구분</strong>할 수 있다.</div>
+
+    <div class="callout"><strong>확인됨</strong> <span class="tag tag-decided">확정</span> — 백오피스는 세션키/세션정보를 <strong>Redis</strong>에 저장해 여러 서버 인스턴스가 공유한다. 즉 Gateway가 로그인해서 받은 쿠키는 로드밸런서가 요청을 어느 인스턴스로 흘려보내도 동일하게 인식된다 — 특정 인스턴스에 종속되는 문제는 없다.</div>
+  </section>
+
+  <section id="write-risk">
+    <h2><span class="n">06</span>처리성 API 리스크</h2>
+    <p>AS접수처럼 여러 MSA에 걸쳐 데이터를 생성/변경하는 호출은 조회보다 리스크 등급이 다르다.</p>
+
+    <div class="card">
+      <div class="card-head"><h4>부분 실패 처리</h4></div>
+      <p>"고객 확인은 성공, AS접수 생성 단계에서 실패" 같은 상황은 반드시 생긴다. MSA 구조상 여러 앱에 걸친 트랜잭션을 하나로 묶어 롤백하기 어려우므로, <strong>실패 시 사람 상담사에게 핸드오프</strong>하는 것을 기본 정책으로 제안한다 (04장의 <code>requiresHandoff</code> 필드 활용).</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h4>멱등성 (Idempotency)</h4></div>
+      <p>봇/네트워크 재시도로 같은 AS접수가 중복 생성되는 걸 막아야 한다. AICC가 넘겨주는 대화/턴 ID를 idempotency key로 활용해 중복 요청을 걸러낸다.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h4>인입 채널 코드</h4><span class="tag tag-open">확인 필요</span></div>
+      <p>AS접수는 VOC로 등록되며, VOC에는 이미 "통합VOC인입채널코드"라는 출처 공통코드가 있는 것으로 보인다(홈페이지 / 설치마스터앱 / 상담톡 / 상담센터 등). 여기에 <strong>AICC/챗봇 값을 추가</strong>해달라고 요청하면 VOC 출처 추적에 도움이 된다 — 다만 이건 "호출자 인증/권한" 문제와는 별개이며, 위 시스템 계정 방식이 그 문제를 담당한다.</p>
+    </div>
+  </section>
+
+  <section id="db-access-risk">
+    <h2><span class="n">07</span>설계 우려사항: 조회 API DB 직접 접근</h2>
+
+    <div class="callout"><strong>제기된 방향</strong> — 처리성(쓰기) API는 기존 백오피스 API를 그대로 쓰되, 조회성(읽기)은 Gateway가 고객/주문 DB에 <strong>직접 접근</strong>해 자체적으로 새 API를 구현하는 방향이 검토되고 있다. <span class="tag tag-open">확인 필요</span></div>
+
+    <p>결론부터: 이 방향은 지양하는 걸 권한다. 02장에서 확인한 "기존 앱간 호출도 화면용 API를 공유해서 쓴다"는 원칙과도 어긋나고, 아래 세 가지 구체적인 리스크가 있다.</p>
+
+    <div class="card">
+      <div class="card-head"><h4>① 비즈니스 로직이 DB 밖(애플리케이션 코드)에 있음</h4></div>
+      <p>탈퇴 고객, 블랙리스트, 상태값 조합에 따른 필터링 같은 로직이 고객app의 서비스 레이어에 있을 가능성이 높다. Gateway가 DB를 직접 쿼리하면 이 로직을 모른 채 읽게 되어, <strong>상담사 화면에는 안 보이는 고객이 봇에게는 조회되는</strong> 식의 불일치가 생길 수 있다. AS접수 흐름에서는 이게 잘못된 고객 정보로 접수가 생성되는 사고로 이어질 수 있다.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h4>② DB 스키마는 고객app 팀의 소유물</h4></div>
+      <p>테이블/컬럼 구조는 그 팀의 구현 세부사항이다. 리팩터링으로 컬럼명이 바뀌거나 테이블이 쪼개지면 Gateway는 경고 없이 조용히 깨지거나 조용히 틀린 값을 반환한다. API 계약이 있었다면 최소한 변경이 드러나는데, DB 직접 접근에는 그 안전판이 없다.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h4>③ 05장에서 세운 정합성이 깨짐</h4></div>
+      <p>쓰기는 세션 인증으로 기존 API를 태우는데 읽기만 DB로 직행하면, 한 시스템 안에 완전히 다른 두 통합 방식이 공존한다. DB 자격증명/네트워크 접근/커넥션 풀을 Gateway가 새로 떠안아야 하고, 봇이 무거운 쿼리를 잘못 날리면 상담사들이 실시간으로 쓰는 운영 DB 성능에 직접 영향을 줄 수 있다 — API 뒤에 있었다면 그 앱이 방어막이 되어줬을 부분이다.</p>
+    </div>
+
+    <h3>추정되는 동기와 대안</h3>
+    <p>아마 "기존 조회 API가 느리다/봇 용도에 안 맞는다" 또는 "다른 팀 일정에 안 막히고 싶다"는 동기일 가능성이 높다. 동기는 타당하지만, DB 직접 접근보다 나은 해법이 있다.</p>
+    <div class="callout"><strong>대안</strong> — 고객app/주문app 팀에 <strong>"AICC용 경량 조회 API"</strong>를 그 도메인 안에 새로 만들어달라고 요청한다. 여전히 API 계약을 통하기 때문에 소유권과 검증 로직이 유지되면서, 봇에 맞게 가볍고 빠르게 최적화될 수 있다. "새 API를 만든다"는 방향 자체는 유지하되, 그 새 API가 <strong>Gateway가 아니라 각 도메인 app 안에</strong> 생기는 것으로 바뀌는 것이 핵심 차이다.</div>
+  </section>
+
+  <section id="checklist">
+    <h2><span class="n">08</span>확인 체크리스트</h2>
+    <p>다음 미팅에서 확인이 필요한 항목들이다.</p>
+
+    <h3>상담app / 서비스app 백엔드팀</h3>
+    <ul class="checklist">
+      <li><input type="checkbox" disabled><span><span class="who">시스템 계정</span>AICC 전용 계정을 만들 때 UI 로그인은 막고 API 호출만 허용하는 제한이 가능한가?</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">세션 정책</span>처리성 API들의 세션 타임아웃 기준은 유휴 시간(idle) 기준인가, 절대 시간 기준인가?</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">공통코드</span>통합VOC인입채널코드에 "AICC/챗봇" 값을 추가할 수 있는가?</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">모니터링</span>기존 API 모니터링 솔루션이 신규 Gateway 앱에도 그대로 적용되는가? (로깅/모니터링 설계는 이 답이 나온 뒤 진행)</span></li>
+    </ul>
+
+    <h3>AICC 벤더</h3>
+    <ul class="checklist">
+      <li><input type="checkbox" disabled><span><span class="who">인증</span>Gateway와 벤더 간 인증 방식으로 어떤 옵션을 지원하는가? (API Key / OAuth2 / mTLS 등)</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">네트워크</span>벤더의 발신 IP가 고정되어 있는가?</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">추적</span>대화/콜 세션 식별자를 요청 헤더로 전달해줄 수 있는가? (04장 <code>traceId</code>)</span></li>
+      <li><input type="checkbox" disabled><span><span class="who">타임아웃</span>봇이 응답을 기다릴 수 있는 최대 시간은 몇 초인가?</span></li>
+    </ul>
+
+    <h3>내부 방향성</h3>
+    <ul class="checklist">
+      <li><input type="checkbox" disabled><span><span class="who">조회 API 방식</span>조회성 API를 Gateway의 DB 직접 접근 대신, 도메인 app 안에 경량 조회 API를 새로 만드는 방식으로 조정할 수 있는가? (07장)</span></li>
+    </ul>
+  </section>
+
+  <section id="next">
+    <h2><span class="n">09</span>다음 단계</h2>
+    <ol class="steps">
+      <li>상담app/서비스app 백엔드팀과 미팅 — 세션 공유 구조, 시스템 계정 발급 가능 여부, 조회 API 방향(07장) 확인</li>
+      <li>AICC 벤더 킥오프 미팅 — 인증 방식, 타임아웃, 세션 식별자 전달 방식 협의</li>
+      <li>AS접수 시나리오의 상세 API 목록(조회→확인→접수 각 단계별 호출 스펙) 확정</li>
+      <li>응답 포맷 v1 스펙 문서화 후 벤더와 공유</li>
+    </ol>
+  </section>
+
+  <footer>
+    AICC 연동 게이트웨이 설계 논의 정리본 · v1 · 이후 논의 내용에 따라 갱신
+  </footer>
+
+</div>

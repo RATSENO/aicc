@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: jdbc:log4jdbc:h2:mem:aicc;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  sql:
+    init:
+      mode: always
+      platform: h2
+      encoding: UTF-8
+
+logging:
+  level:
+    com.onestar.aicc: debug
+    jdbc.sqlonly: info
+    jdbc.resultsettable: info
+    jdbc.audit: off
+    jdbc.sqltiming: info
+    jdbc.connection: off

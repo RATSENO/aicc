@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: jdbc:log4jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+logging:
+  level:
+    com.onestar.aicc: info
+    jdbc.sqlonly: off
+    jdbc.resultsettable: off
+    jdbc.audit: off
+    jdbc.sqltiming: off
+    jdbc.connection: off
