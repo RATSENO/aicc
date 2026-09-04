@@ -9,6 +9,7 @@ import com.onestar.aicc.sample.exception.SampleNotFoundException;
 import com.onestar.aicc.sample.mapper.SampleBookMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +50,7 @@ public class SampleBookService {
         return toResponse(entity);
     }
 
+    @Transactional
     public BookResponse update(Long bookId, BookRequest request) {
         BookEntity existing = findEntityOrThrow(bookId);
         BookEntity updated = BookEntity.builder()
@@ -63,6 +65,7 @@ public class SampleBookService {
         return toResponse(updated);
     }
 
+    @Transactional
     public void delete(Long bookId) {
         findEntityOrThrow(bookId);
         sampleBookMapper.deleteBookById(bookId);
