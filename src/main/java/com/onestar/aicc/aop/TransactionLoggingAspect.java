@@ -18,13 +18,15 @@ import java.util.Deque;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * {@code com.onestar.aicc} 하위의 {@code @Transactional} 메소드 호출마다 트랜잭션 경계 상태(신규 시작인지
- * 기존 트랜잭션에 참여하는지, 커밋/롤백이 언제 일어나는지)를 로그로 남긴다.
+ * `@Transactional` 메소드가 호출될 때마다 "이번 호출이 새 트랜잭션을 시작하는 건지, 이미 진행 중인
+ * 트랜잭션에 그냥 참여하는 건지"와 "결과적으로 커밋됐는지 롤백됐는지"를 로그로 남겨주는 애스펙트다.
  *
- * <p>{@code @Order}를 명시하지 않으면 Spring의 트랜잭션 어드바이저({@code BeanFactoryTransactionAttributeSourceAdvisor},
- * 기본값 {@code Ordered.LOWEST_PRECEDENCE})와 이 애스펙트의 상대 순서가 정의되지 않는다. 유한한 order 값을 주면
- * 이 애스펙트가 항상 트랜잭션 인터셉터 바깥쪽을 감싸는 것이 보장되어, {@link #proceed} 시점에는 이미 내부에서
- * 트랜잭션 시작/커밋/롤백이 끝난 뒤이므로 {@code TransactionSynchronizationManager} 상태만으로 판정할 수 있다.
+ * 쉽게 말하면: 서비스 메소드끼리 서로 호출하는 구조에서 트랜잭션이 하나로 묶이는지 따로 도는지,
+ * 언제 롤백이 발생하는지를 로그만 보고 바로 파악할 수 있게 해준다.
+ *
+ * (구현 참고) `@Order(100)`을 명시한 이유는 Spring의 트랜잭션 처리 로직보다 이 애스펙트가 항상
+ * "바깥쪽"에서 감싸도록 순서를 고정하기 위함이다 — 그래야 트랜잭션이 이미 시작/종료된 뒤의 상태를
+ * 보고 정확하게 판정할 수 있다.
  */
 @Aspect
 @Component
