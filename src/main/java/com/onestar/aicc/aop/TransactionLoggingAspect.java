@@ -42,6 +42,11 @@ public class TransactionLoggingAspect {
         NEW, JOINED, SUSPENDED_NEW, NON_TRANSACTIONAL, UNCLASSIFIED
     }
 
+    /**
+     * `@Transactional` 메소드가 호출될 때마다 실행되는 로깅 본체.
+     * 새 트랜잭션 시작인지 기존 트랜잭션 참여인지 판정해서 진입 로그를 남기고,
+     * 메소드 실행이 끝나면 커밋됐는지 롤백됐는지를 로그로 남긴다.
+     */
     @Around("execution(* com.onestar.aicc..*(..)) && "
             + "(@annotation(org.springframework.transaction.annotation.Transactional) || "
             + " @within(org.springframework.transaction.annotation.Transactional))")
@@ -114,6 +119,10 @@ public class TransactionLoggingAspect {
         }
     }
 
+    /**
+     * propagation 설정과 "호출 전에 이미 활성화된 트랜잭션이 있었는지"를 조합해서
+     * 이번 호출이 신규/참여/일시중단후신규/비트랜잭션 중 어디에 해당하는지 분류한다.
+     */
     private BoundaryKind classify(int propagation, boolean wasActive) {
         switch (propagation) {
             case TransactionDefinition.PROPAGATION_REQUIRES_NEW:
@@ -131,6 +140,7 @@ public class TransactionLoggingAspect {
         }
     }
 
+    /** propagation 정수 상수를 로그에 보기 좋은 이름(REQUIRED, REQUIRES_NEW 등)으로 바꿔준다. */
     private String propagationName(int propagation) {
         switch (propagation) {
             case TransactionDefinition.PROPAGATION_REQUIRED:
