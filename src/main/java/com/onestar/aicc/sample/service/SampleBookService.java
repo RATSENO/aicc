@@ -1,5 +1,6 @@
 package com.onestar.aicc.sample.service;
 
+import com.onestar.aicc.aop.TransactionTrace;
 import com.onestar.aicc.commons.response.PageResponse;
 import com.onestar.aicc.sample.domain.BookEntity;
 import com.onestar.aicc.sample.dto.BookRequest;
@@ -51,6 +52,7 @@ public class SampleBookService {
     }
 
     @Transactional
+    @TransactionTrace
     public BookResponse update(Long bookId, BookRequest request) {
         BookEntity existing = findEntityOrThrow(bookId);
         BookEntity updated = BookEntity.builder()

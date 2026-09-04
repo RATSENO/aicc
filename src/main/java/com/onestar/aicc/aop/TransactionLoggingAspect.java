@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * 쉽게 말하면: 서비스 메소드끼리 서로 호출하는 구조에서 트랜잭션이 하나로 묶이는지 따로 도는지,
  * 언제 롤백이 발생하는지를 로그만 보고 바로 파악할 수 있게 해준다.
  *
+ * <p>단, 아무 서비스에서나 다 로그를 남기지는 않는다. {@link TransactionTrace}가 붙은 "최초 진입"
+ * 메소드가 호출된 경우에만 로그가 켜지고, 그 호출 안에서 연쇄적으로 실행되는 다른 `@Transactional`
+ * 메소드들까지 같은 흐름으로 묶여서 로그에 남는다. 확인이 필요한 서비스에만 애노테이션을 붙여서 켜면 된다.
+ *
  * (구현 참고) `@Order(100)`을 명시한 이유는 Spring의 트랜잭션 처리 로직보다 이 애스펙트가 항상
  * "바깥쪽"에서 감싸도록 순서를 고정하기 위함이다 — 그래야 트랜잭션이 이미 시작/종료된 뒤의 상태를
  * 보고 정확하게 판정할 수 있다.
@@ -55,6 +59,14 @@ public class TransactionLoggingAspect {
     public Object logTransactionBoundary(ProceedingJoinPoint pjp) throws Throwable {
         MethodSignature signature = (MethodSignature) pjp.getSignature();
         Method method = signature.getMethod();
+
+        // 이 메소드에 @TransactionTrace가 직접 붙어있거나(=최초 진입 지점), 이미 추적 중인 호출
+        // 체인 안쪽(스택이 비어있지 않음)이 아니면 아무것도 하지 않고 그냥 통과시킨다.
+        boolean armed = method.isAnnotationPresent(TransactionTrace.class) || !TRACE_STACK.get().isEmpty();
+        if (!armed) {
+            return pjp.proceed();
+        }
+
         Class<?> targetClass = pjp.getTarget().getClass();
         TransactionAttribute txAttr = transactionAttributeSource.getTransactionAttribute(method, targetClass);
         if (txAttr == null) {
@@ -69,19 +81,22 @@ public class TransactionLoggingAspect {
         boolean pushed = false;
         String traceId;
         if (kind == BoundaryKind.NEW || kind == BoundaryKind.SUSPENDED_NEW) {
+            // 활성화된 트랜잭션이 없던 상태에서 호출됐으므로, 이 호출이 새 물리 트랜잭션을 시작한다.
             traceId = "tx-" + TRACE_SEQ.incrementAndGet();
             stack.push(traceId);
             pushed = true;
-            log.info("[{}] BEGIN({}) {} propagation={} readOnly={} thread={}",
+            log.info("[{}] 트랜잭션 시작({}) {} 전파방식={} 읽기전용={} 스레드={}",
                     traceId, kind, label, propagationName(txAttr.getPropagationBehavior()),
                     txAttr.isReadOnly(), Thread.currentThread().getName());
         } else if (kind == BoundaryKind.JOINED) {
+            // 이미 진행 중인 트랜잭션이 있어서, 새로 시작하지 않고 거기에 그냥 묶여 들어간다.
             traceId = stack.peek();
-            log.info("[{}] JOIN(existing tx) {} propagation={} thread={}",
+            log.info("[{}] 기존 트랜잭션에 참여 {} 전파방식={} 스레드={}",
                     traceId, label, propagationName(txAttr.getPropagationBehavior()), Thread.currentThread().getName());
         } else {
+            // 이 호출은 실제 트랜잭션 없이(또는 판정 불가 상태로) 실행된다.
             traceId = stack.peek();
-            log.debug("(no active tx, kind={}) {} propagation={} — running non-transactionally",
+            log.debug("(활성 트랜잭션 없음, 종류={}) {} 전파방식={} — 트랜잭션 없이 실행됨",
                     kind, label, propagationName(txAttr.getPropagationBehavior()));
         }
 
@@ -90,24 +105,30 @@ public class TransactionLoggingAspect {
             Object result = pjp.proceed();
             long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
             if (pushed) {
-                log.info("[{}] COMMIT {} elapsedMs={}", traceId, label, elapsedMs);
+                // 이 호출이 물리 트랜잭션의 경계였으므로, 여기서 실제 커밋이 일어난 것이다.
+                log.info("[{}] 커밋 완료 {} 소요시간={}ms", traceId, label, elapsedMs);
             } else if (kind == BoundaryKind.JOINED) {
-                log.debug("[{}] PARTICIPATE-OK {} elapsedMs={}", traceId, label, elapsedMs);
+                // 참여 호출은 정상 종료됐을 뿐, 실제 커밋 여부는 바깥쪽(물리 경계) 호출의 로그에서 확인해야 한다.
+                log.debug("[{}] 참여 호출 정상 종료 {} 소요시간={}ms", traceId, label, elapsedMs);
             }
             return result;
         } catch (Throwable ex) {
             long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
             if (pushed) {
+                // 물리 트랜잭션 경계에서 예외가 터졌으므로, Spring의 롤백 규칙(rollbackFor 등)을 그대로
+                // 반영해서 실제로 롤백될지 커밋될지를 판정해 로그로 남긴다.
                 boolean willRollback = txAttr.rollbackOn(ex);
-                log.info("[{}] {} {} elapsedMs={} exception={}: {}",
-                        traceId, willRollback ? "ROLLBACK" : "COMMIT(non-rollback exception)",
+                log.info("[{}] {} {} 소요시간={}ms 예외={}: {}",
+                        traceId, willRollback ? "롤백" : "커밋(롤백 대상이 아닌 예외)",
                         label, elapsedMs, ex.getClass().getName(), ex.getMessage());
             } else if (kind == BoundaryKind.JOINED) {
+                // 참여 호출 중 예외가 발생했다 — 최종 롤백 여부는 바깥쪽 물리 트랜잭션이 결정하지만,
+                // 이 예외가 그 트랜잭션을 롤백 전용으로 만들 가능성이 있는지는 여기서 미리 판정해 둔다.
                 boolean willRollback = txAttr.rollbackOn(ex);
-                log.info("[{}] PARTICIPATE-EXCEPTION {} elapsedMs={} exception={} willMarkOuterRollbackOnly={}",
+                log.info("[{}] 참여 호출 중 예외 발생 {} 소요시간={}ms 예외={} 외부트랜잭션롤백유발여부={}",
                         traceId, label, elapsedMs, ex.getClass().getSimpleName(), willRollback);
             } else {
-                log.warn("{} threw while entering propagation={}: {}",
+                log.warn("{} 진입 중 예외 발생(전파방식={}): {}",
                         label, propagationName(txAttr.getPropagationBehavior()), ex.toString());
             }
             throw ex;
