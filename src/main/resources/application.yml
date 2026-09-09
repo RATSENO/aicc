@@ -21,6 +21,14 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+aicc:
+  audit:
+    channel-header: X-AICC-Channel
+    channel-actor-map:
+      CALLBOT: AICC_CALLBOT
+      CHATBOT: AICC_CHATBOT
+    default-actor-id: AICC_BOT
+
 jasypt:
   encryptor:
     password: ${JASYPT_ENCRYPTOR_PASSWORD:}
