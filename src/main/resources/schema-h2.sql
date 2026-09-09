@@ -6,5 +6,7 @@ CREATE TABLE book (
     author     VARCHAR(100) NOT NULL,
     price      INT          NOT NULL,
     status     VARCHAR(20)  NOT NULL,
-    created_at TIMESTAMP    NOT NULL
+    created_at TIMESTAMP    NOT NULL,
+    reg_id     VARCHAR(50),
+    mod_id     VARCHAR(50)
 );

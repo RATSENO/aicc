@@ -67,32 +67,54 @@ aicc:
 
 ---
 
-## 4. 사용법 — 서비스 코드에서 호출하기
+## 4. 사용법 — domain 엔티티가 `BaseAuditEntity`를 상속받기만 하면 끝
 
-아직 실제 `domain`/`mapper`/`service` 패키지는 없다(`sample` 패키지는 학습용 참고 구현일 뿐). 실제 비즈니스
-코드가 생기면 이렇게 쓴다.
+처음에는 서비스 코드가 `AuditContext.getActorId()`를 직접 호출해서 값을 채우는 방식으로 안내했지만, 지금은
+그럴 필요가 없다. MyBatis insert/update 대상 domain 엔티티가 `com.onestar.aicc.commons.audit.BaseAuditEntity`
+(`regId`/`modId` 필드 보유)를 상속받기만 하면, insert/update가 실제로 실행되는 순간
+`AuditColumnMyBatisInterceptor`가 자동으로 값을 채워준다. **서비스 코드는 더 이상 아무것도 할 필요가 없다.**
 
 ```java
-import com.onestar.aicc.commons.audit.AuditContext;
+// domain 엔티티는 BaseAuditEntity만 상속받으면 된다
+public class SomeEntity extends BaseAuditEntity {
+    private Long id;
+    private String name;
+    // ...
+}
 
-// 등록(insert) 시
+// 서비스 코드는 평소처럼 mapper만 호출하면 regId/modId가 자동으로 채워진다
 SomeEntity entity = SomeEntity.builder()
-        .regId(AuditContext.getActorId())
-        .modId(AuditContext.getActorId())
+        .name(request.getName())
         .build();
-someMapper.insert(entity);
+someMapper.insert(entity);   // 실행되는 순간 regId, modId가 자동 세팅됨
 
-// 수정(update) 시 — 등록자는 건드리지 않는다
-existing.setModId(AuditContext.getActorId());
-someMapper.update(existing);
+someMapper.update(existing); // 실행되는 순간 modId만 갱신됨 (regId는 그대로 보존)
 ```
 
-**주의**: 수정 경로에서는 보통 `modId`(수정자)만 다시 세팅하고, `regId`(등록자)는 최초 등록 시점 값을 그대로
-보존한다. update 로직을 작성할 때 실수로 등록자까지 덮어쓰지 않도록 주의할 것.
+실제 참고 구현은 `sample` 패키지의 `BookEntity`/`SampleBookMapper`다 — `BookEntity extends BaseAuditEntity`로
+선언돼 있고, `SampleBookMapper.xml`의 `insertBook`/`updateBook`이 각각 `reg_id`/`mod_id` 컬럼을 다룬다.
 
 ---
 
-## 5. ThreadLocal 정리(clear)와 누수 주의
+## 5. MyBatis 인터셉터가 하는 일
+
+`AuditColumnMyBatisInterceptor`는 MyBatis의 `Executor.update(MappedStatement, Object)` 호출을 가로챈다
+(INSERT/UPDATE/DELETE가 모두 이 메소드를 거친다).
+
+- **`MappedStatement.getSqlCommandType()`으로 INSERT/UPDATE/DELETE를 구분**한다. INSERT/UPDATE만 처리하고,
+  DELETE는 그대로 통과시킨다.
+- **INSERT**: `regId`, `modId` 둘 다 `AuditContext.getActorId()`로 세팅.
+- **UPDATE**: `modId`만 세팅. `regId`(등록자)는 최초 등록 시점 값을 그대로 보존해야 하므로 절대 건드리지
+  않는다 — 게다가 `SampleBookMapper.xml`의 `updateBook` SQL 자체도 `reg_id` 컬럼을 아예 언급하지 않아서,
+  Java 객체에 실수로 `regId`가 세팅돼 있어도 DB에는 영향이 없는 이중 안전장치가 있다.
+- **파라미터 판정**: `@Param` 없이 엔티티 하나만 받는 mapper 메소드(예: `insertBook(BookEntity book)`)는
+  파라미터가 곧 `BaseAuditEntity` 인스턴스라 바로 판정된다. `@Param`을 쓰는 메소드는 MyBatis가 파라미터를
+  `Map`으로 감싸므로, 그 안에서 `BaseAuditEntity` 타입 값을 찾는다 — **정확히 하나만 있어야** 자동 세팅이
+  되고, 0개나 2개 이상이면 애매하므로 추측하지 않고 경고 로그만 남긴 채 건너뛴다.
+
+---
+
+## 6. ThreadLocal 정리(clear)와 누수 주의
 
 Tomcat은 워커 스레드(`http-nio-8080-exec-N`)를 요청마다 재사용한다. `AuditContext.clear()`를 호출하지
 않으면 이전 요청에서 세팅된 actor id가 다음 요청으로 새어 들어갈 수 있다.
@@ -106,42 +128,61 @@ Tomcat은 워커 스레드(`http-nio-8080-exec-N`)를 요청마다 재사용한�
 
 ---
 
-## 6. 검증 방법
+## 7. 검증 방법
 
 ### 단위 테스트
 
 - `AuditContextTest` — `setActorId`/`getActorId` 왕복, 기본값 폴백, `clear()` 동작을 검증한다.
 - `AuditContextInterceptorTest` — `MockHttpServletRequest`로 실제 서블릿 컨테이너 없이 헤더값별 분기
   (알려진 값 / 없음 / 모르는 값)와, `afterCompletion` 호출 후 실제로 정리되는지를 검증한다.
+- `AuditColumnMyBatisInterceptorTest` — INSERT 시 regId/modId 둘 다 세팅, UPDATE 시 modId만 세팅(regId
+  보존), DELETE는 아무것도 안 건드림, `Map` 파라미터에서 정확히 하나만 매칭되면 세팅되고 0개/2개 이상이면
+  건너뛰는지를 검증한다.
 
-### 수동 확인 (curl)
+### 수동 확인 (curl) — DB 반영까지 end-to-end 확인
+
+`sample` 패키지(`BookEntity`)에 실제로 `reg_id`/`mod_id` 컬럼이 반영돼 있으므로, HTTP 헤더 → DB 저장까지
+전체 흐름을 눈으로 확인할 수 있다.
 
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 ```bash
-curl http://localhost:8080/api/v1/sample/books -H "X-AICC-Channel: CALLBOT"
-curl http://localhost:8080/api/v1/sample/books
+# 1. 콜봇으로 등록
+curl -X POST http://localhost:8080/api/v1/sample/books \
+  -H "Content-Type: application/json" \
+  -H "X-AICC-Channel: CALLBOT" \
+  -d '{"title":"테스트 도서","author":"테스터","price":10000,"status":"AVAILABLE"}'
+# → 응답에 "regId":"AICC_CALLBOT","modId":"AICC_CALLBOT"
+
+# 2. 조회로 재확인 (헤더 없이 — DB에서 읽어온 값임을 증명)
+curl http://localhost:8080/api/v1/sample/books/4
+
+# 3. 챗봇으로 수정
+curl -X PUT http://localhost:8080/api/v1/sample/books/4 \
+  -H "Content-Type: application/json" \
+  -H "X-AICC-Channel: CHATBOT" \
+  -d '{"title":"테스트 도서(수정)","author":"테스터","price":12000,"status":"AVAILABLE"}'
+# → 응답에 "regId":"AICC_CALLBOT"(보존), "modId":"AICC_CHATBOT"(변경)
+
+# 4. 다시 조회로 재확인
+curl http://localhost:8080/api/v1/sample/books/4
 ```
 
-콘솔에서 다음과 같은 로그를 확인한다 (`local` 프로파일은 `com.onestar.aicc: debug`가 이미 켜져 있음).
-
-```text
-감사 컨텍스트 설정: uri=/api/v1/sample/books, actorId=AICC_CALLBOT
-감사 컨텍스트 설정: uri=/api/v1/sample/books, actorId=AICC_BOT
-```
-
-`SampleBookService`/`BookEntity`에는 감사 컬럼이 없으므로, 이 확인은 "인터셉터가 실제 HTTP 요청에서
-정상 동작했다"는 것만 증명한다. 실제 DB 쓰기에 값이 반영되는지는 실제 비즈니스 매퍼가 생겼을 때 확인한다.
+H2 콘솔(`http://localhost:8080/h2-console`, JDBC URL `jdbc:h2:mem:aicc`, 사용자 `sa`, 빈 비밀번호)에서
+`SELECT book_id, reg_id, mod_id FROM book;`로 직접 확인해도 된다 — 시드 데이터(1~3번)는 인터셉터를 거치지
+않고 들어간 것이므로 `NULL`/`NULL`이고, 새로 등록/수정한 행만 값이 채워져 있어야 정상이다.
 
 ---
 
-## 7. 관련 파일
+## 8. 관련 파일
 
 | 파일 | 역할 |
 | --- | --- |
 | `src/main/java/com/onestar/aicc/commons/audit/AuditContext.java` | ThreadLocal 기반 actor id 보관 |
 | `src/main/java/com/onestar/aicc/commons/audit/AuditProperties.java` | `aicc.audit.*` 설정값 바인딩 |
-| `src/main/java/com/onestar/aicc/commons/audit/AuditContextInterceptor.java` | 요청당 1회 actor id 판정/세팅/정리 |
-| `src/main/java/com/onestar/aicc/config/WebMvcConfig.java` | 인터셉터를 `/api/**`에 등록 |
+| `src/main/java/com/onestar/aicc/commons/audit/AuditContextInterceptor.java` | 요청당 1회 actor id 판정/세팅/정리 (HTTP `HandlerInterceptor`) |
+| `src/main/java/com/onestar/aicc/config/WebMvcConfig.java` | `AuditContextInterceptor`를 `/api/**`에 등록 |
+| `src/main/java/com/onestar/aicc/commons/audit/BaseAuditEntity.java` | insert/update 대상 domain 엔티티가 상속받는 regId/modId 베이스 클래스 |
+| `src/main/java/com/onestar/aicc/commons/audit/AuditColumnMyBatisInterceptor.java` | insert/update 실행 시 regId/modId 자동 세팅 (MyBatis `Interceptor`) |

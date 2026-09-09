@@ -1,5 +1,6 @@
 package com.onestar.aicc.sample.domain;
 
+import com.onestar.aicc.commons.audit.BaseAuditEntity;
 import com.onestar.aicc.sample.dto.BookStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,13 +13,14 @@ import java.time.LocalDateTime;
 /**
  * H2(MyBatis) 테이블 BOOK에 매핑되는 도메인 객체.
  * 실제 업무 도메인이 아닌 sample 패키지 전용 학습용 엔티티다.
+ * BaseAuditEntity를 상속받아, insert/update 시 regId/modId가 자동으로 채워진다.
  */
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BookEntity {
+public class BookEntity extends BaseAuditEntity {
 
     private Long bookId;
     private String title;

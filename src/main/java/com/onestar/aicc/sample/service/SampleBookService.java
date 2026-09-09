@@ -63,6 +63,9 @@ public class SampleBookService {
                 .status(request.getStatus())
                 .createdAt(existing.getCreatedAt())
                 .build();
+        // regId(등록자)는 BaseAuditEntity 상속 필드라 @Builder 체인에 노출되지 않으므로 setter로 보존한다.
+        // DB에는 어차피 updateBook SQL이 reg_id를 건드리지 않지만, 응답 바디에도 값이 비어 보이지 않게 한다.
+        updated.setRegId(existing.getRegId());
         sampleBookMapper.updateBook(updated);
         return toResponse(updated);
     }
@@ -89,6 +92,8 @@ public class SampleBookService {
                 .price(entity.getPrice())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
+                .regId(entity.getRegId())
+                .modId(entity.getModId())
                 .build();
     }
 }

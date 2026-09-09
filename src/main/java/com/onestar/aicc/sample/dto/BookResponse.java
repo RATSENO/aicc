@@ -37,6 +37,12 @@ public class BookResponse {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
+    @Schema(description = "등록자(actor id) — 최초 등록 시점 값을 보존한다", example = "AICC_CALLBOT")
+    private String regId;
+
+    @Schema(description = "수정자(actor id) — 마지막 등록/수정 시점 값으로 갱신된다", example = "AICC_CHATBOT")
+    private String modId;
+
     public static BookResponse of(Long bookId, BookRequest request, LocalDateTime createdAt) {
         return BookResponse.builder()
                 .bookId(bookId)

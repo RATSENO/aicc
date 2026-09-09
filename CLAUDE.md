@@ -64,7 +64,7 @@ HTTP 요청 → Controller → Service → { MyBatis Mapper → DB, Feign Client
 | --- | --- |
 | `config` | Spring 설정 (`OpenApiConfig`, `WebMvcConfig`가 `AuditContextInterceptor`를 `/api/**`에 등록, 추후 `FeignConfig`/`DatabaseConfig`) |
 | `aop` | 횡단 관심사 AOP 애스펙트 — `TransactionLoggingAspect`가 `@Transactional` 경계 상태(신규 시작 vs 기존 트랜잭션 참여, 커밋/롤백)를 로그로 남김 |
-| `commons` | 공통 유틸리티 — `commons/response`: `ApiResponse<T>`(응답 래퍼), `PageResponse<T>`(페이지네이션), `ErrorResponse`; `commons/audit`: `AuditContext`(ThreadLocal 기반 등록자/수정자 actor id 보관), `AuditProperties`, `AuditContextInterceptor` — 자세한 내용은 `docs/guide/audit-context-guide.md` 참고 |
+| `commons` | 공통 유틸리티 — `commons/response`: `ApiResponse<T>`(응답 래퍼), `PageResponse<T>`(페이지네이션), `ErrorResponse`; `commons/audit`: `AuditContext`(ThreadLocal 기반 등록자/수정자 actor id 보관), `AuditProperties`, `AuditContextInterceptor`(요청당 1회 actor id 판정, HTTP `HandlerInterceptor`), `BaseAuditEntity`(regId/modId를 갖는 domain 공통 베이스 클래스), `AuditColumnMyBatisInterceptor`(insert/update 실행 시 regId/modId 자동 세팅, MyBatis `Interceptor`) — 자세한 내용은 `docs/guide/audit-context-guide.md` 참고 |
 | `controller` | HTTP 요청을 받아 `service`로 위임하고 응답을 반환 — 비즈니스 로직 없음 |
 | `service` | 비즈니스 로직; `mapper`와 `client` 호출을 조율 |
 | `mapper` | MyBatis `@Mapper` 인터페이스 (SQL은 Java가 아니라 `resources/mapper/**/*.xml`에 위치) |
